@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Меткий ответ — игра</title></head>
+<body><p>Запуск игры…</p><script>(async()=>{try{const raw=location.hash.match(/project-gzip=([^&]+)/)?.[1];if(raw){const bytes=Uint8Array.from(atob(raw.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0)),stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')),json=await new Response(stream).text();sessionStorage.setItem('v8SharedProject',json)}}catch(e){document.body.innerHTML='<p>Не удалось открыть проект.</p>';return}location.replace('./player-v20261022-previewfix2/index.html?player=1')})()</script></body>
+</html>

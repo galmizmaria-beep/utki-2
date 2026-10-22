@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
+(async()=>{const checks={},wait=ms=>new Promise(r=>setTimeout(r,ms));try{
+for(const path of ['../index.html','../player-v20261022-previewfix2/index.html']){
+ const frame=document.createElement('iframe');frame.src=path;document.body.append(frame);await new Promise(r=>frame.onload=r);const w=frame.contentWindow,d=frame.contentDocument,api=w.EditorV5,c=api.getConfig();d.querySelector('#restoreDelete').click();
+ const area=d.querySelector('#v8RoundTaskSource');area.value='Первый вопрос | Да* | Нет\nВторой вопрос | Нет | Да*';area.dispatchEvent(new w.Event('input',{bubbles:true}));area.setSelectionRange(area.value.length,area.value.length);
+ const canvas=d.createElement('canvas');canvas.width=30;canvas.height=20;canvas.getContext('2d').fillRect(0,0,30,20);const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));const file=new w.File([blob],'image.png',{type:'image/png'}),transfer=new w.DataTransfer();transfer.items.add(file);const input=d.querySelector('#taskImageUpload');input.files=transfer.files;input.dispatchEvent(new w.Event('change',{bubbles:true}));
+ for(let n=0;n<50&&!d.querySelector('#modalQuestion img');n++)await wait(50);
+ const image=d.querySelector('#modalQuestion img');if(image)await image.decode();
+ checks[path+' upload visible']=!!image&&image.naturalWidth===30&&!d.querySelector('#taskModal').hidden;
+ checks[path+' selected question']=d.querySelector('#modalQuestion').textContent.includes('Второй вопрос');
+ checks[path+' answers intact']=c.tasks.length===2&&c.tasks[1].answers[1].correct&&c.tasks[1].answers[1].text==='Да';
+ checks[path+' image belongs to question']=c.tasks[1].question.includes('data:image/webp')&&!c.tasks[1].answers.some(a=>a.text.includes('data:image'));
+ for(const opt of d.querySelector('#hitEffect').options){const field=d.querySelector('#hitEffect');field.value=opt.value;field.dispatchEvent(new w.Event('change',{bubbles:true}));await wait(50);checks[path+' particles '+opt.value]=opt.value==='none'?d.querySelector('#targetEffectPreview').children.length===0:!!d.querySelector('#targetEffectPreview .particle-'+opt.value)}
+ for(const opt of d.querySelector('#targetHitAnimation').options){const field=d.querySelector('#targetHitAnimation');field.value=opt.value;field.dispatchEvent(new w.Event('change',{bubbles:true}));await wait(50);checks[path+' animation '+opt.value]=!!d.querySelector('.target-preview-art')?.getAnimations().length}
+ const field=d.querySelector('#effectColor');field.value='#ff0000';field.dispatchEvent(new w.Event('input',{bubbles:true}));await wait(50);checks[path+' input replays']=!!d.querySelector('.target-preview-art')?.getAnimations().length;
+ await wait(850);checks[path+' target restored']=w.getComputedStyle(d.querySelector('.target-preview-art')).opacity==='1'&&d.querySelector('.target-preview-art').getAnimations().length===0;
+ d.querySelector('[data-preview="task"]').click();await wait(30);checks[path+' no ghost targets']=!d.querySelector('.target-position');checks[path+' selected image persists']=!!d.querySelector('#modalQuestion img');
+ const project=api.projectSnapshot();await api.importProject(new w.File([JSON.stringify(project)],'project.json',{type:'application/json'}));api.setPreviewTaskIndex(1);api.openTask(true);checks[path+' image survives reload']=!!d.querySelector('#modalQuestion img');
+ c.rounds[0].taskSource=c.rounds[0].taskSource.split('\n')[1];c.rounds[0].taskCount=1;w.EditorV8.activateRound(0);c.helper.duration=.01;c.helper.exitAnimation='none';c.roundIntro.duration=.01;c.audio.enabled=false;c.titleScreen.enabled=true;
+ const exported=api.generateStandalone(),player=d.createElement('iframe');player.srcdoc=exported;d.body.append(player);await new Promise(r=>player.onload=r);const pd=player.contentDocument;pd.querySelector('#startGame').click();await wait(40);pd.querySelector('#skipHelper').click();await wait(350);pd.querySelector('.live-target').click();await wait(850);const pi=pd.querySelector('#modalQuestion img');if(pi)await pi.decode();checks[path+' export image']=!!pi&&pi.naturalWidth===30;checks[path+' export no preview artifacts']=!pd.querySelector('#targetEffectPreview,.target-position');
+ frame.remove();
+}
+result.textContent=(Object.values(checks).every(Boolean)?'PASS ':'FAIL ')+JSON.stringify(checks);
+}catch(e){result.textContent='FAIL '+e.stack+' '+JSON.stringify(checks)}})();
+</script>

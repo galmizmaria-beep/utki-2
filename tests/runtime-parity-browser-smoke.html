@@ -74,7 +74,7 @@ editor.onload=async()=>{
   const snapshot=win.EditorV5.projectSnapshot();
   checks.levelKeepsSizeAndDuration=snapshot.rules.simultaneousTargets===3&&snapshot.target.size===91&&snapshot.target.duration===2;
   const payload=await encodeProject(snapshot),genially=document.createElement('iframe');
-  genially.src='../game-v20261022-features1.html#project-gzip='+payload;
+  genially.src='../game-v20261022-previewfix2.html#project-gzip='+payload;
   document.body.append(genially);
   await new Promise(resolve=>{const done=()=>{if(genially.contentWindow.location.pathname.endsWith('/index.html'))resolve();else genially.addEventListener('load',done,{once:true})};genially.addEventListener('load',done,{once:true})});
   await wait(350);
