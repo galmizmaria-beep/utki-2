@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>Export browser smoke</title>
+<iframe id="editor" src="../index.html?export-smoke=1" style="width:1200px;height:800px"></iframe>
+<pre id="result">RUNNING</pre>
+<script>
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+editor.onload=async()=>{
+ const d=editor.contentDocument,w=editor.contentWindow,checks={};await wait(350);
+ const config=w.EditorV5.getConfig(),source='[ввод] Столица Франции | Париж';
+ const project=structuredClone(config);project.taskSource=source;project.rounds[0].taskSource=source;project.rounds[0].taskCount=1;
+ const transfer=new DataTransfer();transfer.items.add(new File([JSON.stringify(project)],'questions.aimquiz.json',{type:'application/json'}));
+ const projectInput=d.querySelector('#projectFile');projectInput.files=transfer.files;projectInput.dispatchEvent(new Event('change',{bubbles:true}));await wait(650);
+ checks.loadedQuestionsVisible=d.querySelector('#v8RoundTaskSource').value===source&&w.EditorV5.getConfig().tasks[0]?.type==='input';
+ await w.EditorV5.saveNow();const restored=document.createElement('iframe');restored.src='../index.html?restore-smoke=1';document.body.append(restored);await new Promise(resolve=>restored.addEventListener('load',resolve,{once:true}));await wait(150);const restoreDoc=restored.contentDocument;checks.autoSavePromptVisible=!restoreDoc.querySelector('#restoreModal').hidden;restoreDoc.querySelector('#restoreContinue').click();await wait(350);
+ checks.autoSaveRestoresQuestions=restoreDoc.querySelector('#v8RoundTaskSource').value===source;
+ const c=w.EditorV5.getConfig();c.helper.duration=.01;c.helper.exitAnimation='none';c.roundIntro.duration=.05;c.audio.enabled=false;c.titleScreen.enabled=true;
+ d.querySelector('#titleScreen').hidden=true;d.querySelector('#taskModal').hidden=false;d.querySelector('#checkAnswer').hidden=true;
+ const exported=w.EditorV5.generateStandalone();const player=document.createElement('iframe');player.srcdoc=exported;document.body.append(player);await new Promise(resolve=>player.addEventListener('load',resolve,{once:true}));const pd=player.contentDocument;await wait(60);
+ checks.exportStartsClean=!pd.querySelector('#titleScreen').hidden&&pd.querySelector('#taskModal').hidden&&pd.querySelector('#resultScreen').hidden;
+ pd.querySelector('#startGame').click();await wait(30);pd.querySelector('#skipHelper').click();await wait(260);const target=pd.querySelector('.live-target');checks.exportLaunchesTarget=!!target&&getComputedStyle(target).display!=='none';target?.click();await wait(850);
+ const answerArea=pd.querySelector('#answerArea'),textInput=pd.querySelector('#textAnswerInput');checks.inputIsEmptyField=!!textInput&&textInput.value===''&&!answerArea.textContent.includes('Париж')&&!answerArea.querySelector('.answer-option');
+ textInput.value='  ПАРИЖ ';pd.querySelector('#checkAnswer').click();await wait(30);checks.inputAnswerChecked=pd.querySelector('#taskCard').classList.contains('correct');
+ d.querySelector('[data-preview="helper"]').click();await wait(30);d.querySelector('#helperRules').value='Новое правило';d.querySelector('#helperRules').dispatchEvent(new Event('input',{bubbles:true}));await wait(40);checks.helperStaticWhileEditing=d.querySelector('#helper').className==='helper visible'&&d.querySelector('#helper').getAnimations().length===0;
+ const enter=d.querySelector('#helperEnterAnimation');enter.value='drop';enter.dispatchEvent(new Event('change',{bubbles:true}));await wait(40);checks.helperAnimationPreview=d.querySelector('#helper').classList.contains('enter-drop');
+ c.taskTheme.backgroundImage='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z8S8AAAAASUVORK5CYII=';c.taskTheme.backgroundOpacity=100;w.EditorV5.applyConfig();d.querySelector('[data-preview="task"]').click();await wait(40);checks.taskBackgroundVisible=getComputedStyle(d.querySelector('#taskCard')).backgroundImage.includes('data:image');
+ c.titleScreen.enabled=false;const noTitle=w.EditorV5.generateStandalone(),noTitlePlayer=document.createElement('iframe');noTitlePlayer.srcdoc=noTitle;document.body.append(noTitlePlayer);await new Promise(resolve=>noTitlePlayer.addEventListener('load',resolve,{once:true}));await wait(60);const nd=noTitlePlayer.contentDocument;checks.levelsWithoutTitle=!nd.querySelector('#difficultyScreen').hidden&&nd.querySelectorAll('#difficultyScreen .difficulty-button').length===3;nd.querySelector('#difficultyScreen [data-level="easy"]').click();checks.levelScreenCloses=nd.querySelector('#difficultyScreen').hidden;checks.levelChoiceStartsGame=nd.querySelector('#helper').classList.contains('visible');await wait(40);
+ const failed=Object.entries(checks).filter(([,ok])=>!ok);result.textContent=(failed.length?'FAIL ':'PASS ')+JSON.stringify(checks);document.body.dataset.status=failed.length?'fail':'pass';w.stop?.();restored.contentWindow.stop?.();player.contentWindow.stop?.();noTitlePlayer.contentWindow.stop?.();
+};
+</script>

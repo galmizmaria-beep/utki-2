@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Runtime parity smoke</title></head>
+<body>
+<iframe id="editor" src="../index.html?runtime-parity=1" style="width:1200px;height:800px"></iframe>
+<pre id="result">RUNNING</pre>
+<script>
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const launch=async(html,level)=>{
+  const frame=document.createElement('iframe');
+  frame.srcdoc=html;
+  document.body.append(frame);
+  await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+  const doc=frame.contentDocument;
+  doc.querySelector(`[data-level="${level}"]`).click();
+  doc.querySelector('#startGame').click();
+  await wait(30);
+  doc.querySelector('#skipHelper').click();
+  await wait(280);
+  return{frame,doc};
+};
+const encodeProject=async project=>{
+  const stream=new Blob([JSON.stringify(project)]).stream().pipeThrough(new CompressionStream('gzip'));
+  const bytes=new Uint8Array(await new Response(stream).arrayBuffer());
+  let binary='';
+  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+};
+editor.onload=async()=>{
+  const win=editor.contentWindow,doc=editor.contentDocument,checks={};
+  await wait(350);
+  const config=win.EditorV5.getConfig();
+  const source=['[устно] Вопрос 1','[устно] Вопрос 2','[устно] Вопрос 3','[устно] Вопрос 4'].join('\n');
+  config.helper.duration=.01;
+  config.helper.exitAnimation='none';
+  config.roundIntro.duration=.05;
+  config.audio.enabled=false;
+  config.titleScreen.enabled=true;
+  config.target.trajectory='bottom-up';
+  config.target.duration=2;
+  config.target.spawnInterval=.4;
+  config.target.size=91;
+  config.rules.simultaneousTargets=3;
+  config.rounds=[{...config.rounds[0],title:'Проверка',taskSource:source,taskCount:4}];
+  config.taskSource=source;
+  config.difficulties.medium.interval=.7;
+  config.difficulties.medium.simultaneous=1;
+  config.difficulties.hard.interval=.25;
+  config.difficulties.hard.simultaneous=6;
+  config._v8BaseGameplay={duration:2,interval:.4,size:91,simultaneous:3,hit:config.rules.hitPoints,answer:config.rules.answerPoints,timer:config.timer.seconds};
+  win.EditorV8.reloadProject();
+  const html=win.EditorV5.generateStandalone();
+
+  const medium=await launch(html,'medium');
+  const mediumTargets=[...medium.doc.querySelectorAll('.live-target')];
+  checks.mediumUsesLevelTargetCount=mediumTargets.length===1;
+  checks.mediumKeepsTrajectory=mediumTargets.every(target=>target.dataset.trajectory==='bottom-up');
+  checks.mediumKeepsRoundTotal=medium.doc.querySelector('#taskProgressValue').textContent==='0 / 4';
+  const mediumFrames=mediumTargets[0]?.getAnimations()[0]?.effect?.getKeyframes?.()||[];
+  checks.exportUsesFullTrajectory=mediumFrames.length>=4&&mediumFrames.at(-1).top==='-10%';
+
+  const hard=await launch(html,'hard');
+  const hardTargets=[...hard.doc.querySelectorAll('.live-target')];
+  checks.hardUsesLevelTargetCount=hardTargets.length===6;
+  checks.hardKeepsTrajectory=hardTargets.every(target=>target.dataset.trajectory==='bottom-up');
+  checks.hardKeepsRoundTotal=hard.doc.querySelector('#taskProgressValue').textContent==='0 / 4';
+  hardTargets[0].click();
+  await wait(850);
+  hard.doc.querySelector('#checkAnswer').click();
+  hard.doc.querySelector('#continueGame').click();
+  await wait(300);
+  checks.progressAndNextWaveMatch=hard.doc.querySelector('#taskProgressValue').textContent==='1 / 4'&&hard.doc.querySelectorAll('.live-target').length===6;
+
+  const snapshot=win.EditorV5.projectSnapshot();
+  checks.levelKeepsSizeAndDuration=snapshot.rules.simultaneousTargets===3&&snapshot.target.size===91&&snapshot.target.duration===2;
+  const payload=await encodeProject(snapshot),genially=document.createElement('iframe');
+  genially.src='../game-v20261022-features1.html#project-gzip='+payload;
+  document.body.append(genially);
+  await new Promise(resolve=>{const done=()=>{if(genially.contentWindow.location.pathname.endsWith('/index.html'))resolve();else genially.addEventListener('load',done,{once:true})};genially.addEventListener('load',done,{once:true})});
+  await wait(350);
+  const genialDoc=genially.contentDocument;
+  genialDoc.querySelector('[data-level="hard"]').click();
+  genialDoc.querySelector('#startGame').click();
+  await wait(30);
+  genialDoc.querySelector('#skipHelper').click();
+  await wait(1000);
+  const genialTargets=[...genialDoc.querySelectorAll('.live-target')];
+  checks.geniallyUsesSameCount=genialTargets.length===6;
+  checks.geniallyUsesSameTrajectory=genialTargets.every(target=>target.dataset.trajectory==='bottom-up');
+  checks.geniallyUsesSameRoundTotal=genialDoc.querySelector('#taskProgressValue').textContent==='0 / 4';
+  const failed=Object.entries(checks).filter(([,ok])=>!ok);
+  result.textContent=(failed.length?'FAIL ':'PASS ')+JSON.stringify(checks);
+  document.body.dataset.status=failed.length?'fail':'pass';
+  win.stop?.();
+};
+</script>
+</body>
+</html>

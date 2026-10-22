@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Result button parity</title>
+<iframe id="editor" src="../index.html" style="width:1200px;height:900px"></iframe><pre id="result">RUNNING</pre>
+<script>
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+editor.onload=async()=>{try{await wait(400);const w=editor.contentWindow,d=editor.contentDocument,c=w.EditorV5.getConfig(),checks={};if(!d.querySelector('#restoreModal').hidden)d.querySelector('#restoreDelete').click();
+const colors={victory:'#12ab34',defeat:'#ab3412',timeout:'#3456ab'},rgb={victory:'rgb(18, 171, 52)',defeat:'rgb(171, 52, 18)',timeout:'rgb(52, 86, 171)'};
+for(const kind of Object.keys(colors)){d.querySelector('[data-screen="'+kind+'"]').click();await wait(5);const field=d.querySelector('#screenButtonColor');field.value=colors[kind];field.dispatchEvent(new w.Event('input',{bubbles:true}));await wait(10);checks['editor_'+kind]=w.getComputedStyle(d.querySelector('#resultButton')).backgroundColor===rgb[kind]}
+c.helper.duration=.01;c.helper.exitAnimation='none';c.roundIntro.duration=.03;c.audio.enabled=false;c.titleScreen.enabled=true;c.target.duration=8;c.rules.livesEnabled=true;c.rules.livesCount=1;c.rules.lifeWrong=true;
+for(const kind of Object.keys(colors)){
+const source=kind==='defeat'?'[ввод] Сколько будет два плюс два? | 4':'[устно] Ответьте';c.rounds=[{...c.rounds[0],taskSource:source,taskCount:1}];c.taskSource=source;c.timer.mode=kind==='timeout'?'game':'off';c.timer.seconds=1;w.EditorV8.reloadProject();
+const frame=document.createElement('iframe');frame.srcdoc=w.EditorV5.generateStandalone();document.body.append(frame);await new Promise(r=>frame.onload=r);const doc=frame.contentDocument;doc.querySelector('#startGame').click();await wait(40);doc.querySelector('#skipHelper').click();await wait(800);
+if(kind==='timeout')await wait(1100);else{doc.querySelector('.live-target').click();await wait(850);if(kind==='defeat')doc.querySelector('#textAnswerInput').value='wrong';doc.querySelector('#checkAnswer').click();if(kind==='victory')doc.querySelector('#continueGame').click();await wait(550)}
+checks['export_'+kind]=!doc.querySelector('#resultScreen').hidden&&frame.contentWindow.getComputedStyle(doc.querySelector('#resultButton')).backgroundColor===rgb[kind];
+doc.querySelector('#resultButton').click();checks['restart_'+kind]=doc.querySelector('#resultScreen').hidden&&!doc.querySelector('#titleScreen').hidden;frame.remove();
+}
+result.textContent=(Object.values(checks).every(Boolean)?'PASS ':'FAIL ')+JSON.stringify(checks);
+}catch(e){result.textContent='FAIL '+e.stack}};
+</script>
